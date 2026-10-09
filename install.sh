@@ -364,7 +364,8 @@ install_panel() {
 }
 
 install_web() {
-  step "部署前端静态资源"
+  # 前端静态资源 + Clash 订阅模板（面板靠 templates/clash-meta.yaml 渲染 Clash 订阅，缺了会 500）
+  step "部署前端静态资源与订阅模板"
   src=""
   if [ -z "$WEB_DIR" ] && [ -z "$WEB_TAR" ] && [ ! -d "$PWD/web/dist" ]; then
     WEB_TAR="https://github.com/$REPO/releases/latest/download/hy2-web.tar.gz"
@@ -379,25 +380,47 @@ install_web() {
     cp -R "$src/." "$APP_DIR/web/dist/"
     ok "前端资源已部署：$APP_DIR/web/dist"
   elif [ -n "$WEB_TAR" ]; then
-    [ "$CHECK_ONLY" = "1" ] && { info "将从 $WEB_TAR 解包前端资源"; return 0; }
+    [ "$CHECK_ONLY" = "1" ] && { info "将从 $WEB_TAR 解包前端与模板"; return 0; }
     tmp="$(mktemp -d)"
     case "$WEB_TAR" in
       http*) curl -fL --retry 3 -o "$tmp/web.tgz" "$WEB_TAR" || { warn "下载前端包失败：$WEB_TAR"; return 0; } ;;
       *) cp "$WEB_TAR" "$tmp/web.tgz" ;;
     esac
-    mkdir -p "$APP_DIR/web/dist"
-    tar -xzf "$tmp/web.tgz" -C "$APP_DIR/web/dist" || die "解包前端资源失败"
+    mkdir -p "$tmp/x"
+    tar -xzf "$tmp/web.tgz" -C "$tmp/x" || die "解包前端资源失败"
+    mkdir -p "$APP_DIR/web/dist" "$APP_DIR/templates"
+    if [ -d "$tmp/x/dist" ]; then
+      cp -R "$tmp/x/dist/." "$APP_DIR/web/dist/"
+    else
+      # 兼容旧格式：包里直接就是 index.html/assets
+      cp -R "$tmp/x/." "$APP_DIR/web/dist/"
+    fi
+    [ -d "$tmp/x/templates" ] && cp -R "$tmp/x/templates/." "$APP_DIR/templates/"
     rm -rf "$tmp"
-    ok "前端资源已解包"
+    ok "前端资源与模板已解包"
   else
     warn "没找到前端资源（--web-dir / --web-tar）—— Panel 会启动但打不开界面"
     info "之后把 dist 放到 $APP_DIR/web/dist 再 systemctl restart $UNIT_PANEL 即可"
   fi
 
-  if [ -d "$PWD/web/public/templates" ]; then
-    [ "$CHECK_ONLY" = "1" ] || cp -R "$PWD/web/public/templates/." "$APP_DIR/templates/" 2>/dev/null || true
+  # 本地源码目录里就有模板时一并拷贝（Clash 订阅必需）
+  if [ -d "$PWD/templates" ]; then
+    [ "$CHECK_ONLY" = "1" ] || {
+      mkdir -p "$APP_DIR/templates"
+      cp -R "$PWD/templates/." "$APP_DIR/templates/" 2>/dev/null || true
+    }
   fi
-  [ "$CHECK_ONLY" = "1" ] || chown -R "$RUN_USER:$RUN_USER" "$APP_DIR" 2>/dev/null || true
+
+  if [ "$CHECK_ONLY" = "1" ]; then
+    return 0
+  fi
+  if [ -s "$APP_DIR/templates/clash-meta.yaml" ]; then
+    ok "Clash 订阅模板就位：$APP_DIR/templates/clash-meta.yaml"
+  else
+    warn "缺少 Clash 订阅模板（$APP_DIR/templates/clash-meta.yaml）—— Clash 订阅会报错"
+    info "可手动补：把项目里的 templates/clash-meta.yaml 拷到该路径后重启面板"
+  fi
+  chown -R "$RUN_USER:$RUN_USER" "$APP_DIR" 2>/dev/null || true
 }
 
 # ---------------------------- 配置 ----------------------------
