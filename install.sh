@@ -13,12 +13,16 @@
 #   8) 打印面板地址与初始管理员密码
 #
 # 用法（root 权限）：
-#   sh install.sh                      # 全自动
+#   sh install.sh                       # 交互式：会问你要管理员用户名与密码
+#   sh install.sh -y                    # 全自动：密码随机生成，完成后打印
+#   sh install.sh --admin-user me --admin-password 'xxx'   # 直接指定账号密码
 #   sh install.sh --domain hy.example.com --email me@example.com
-#   sh install.sh --panel-bin ./hy2-panel-linux-amd64 --web-dir ./web/dist
-#   sh install.sh --check              # 只检查环境并打印计划，不改动系统
-#   sh install.sh --uninstall          # 卸载（保留数据）
+#   sh install.sh --check               # 只检查环境并打印计划，不改动系统
+#   sh install.sh --uninstall           # 卸载（保留数据）
 #   sh install.sh --help
+#
+# 从网络一键安装（参数完全一样，没给账号密码时会交互询问）：
+#   curl -fsSL https://raw.githubusercontent.com/xfgken/Hysteria2_Panel/main/install.sh | sh -s --
 # ============================================================================
 
 set -u
@@ -99,7 +103,8 @@ while [ $# -gt 0 ]; do
       else
         say "HY2 Panel 一键安装（从管道运行）"
         say "  curl -fsSL https://raw.githubusercontent.com/xfgken/Hysteria2_Panel/main/install.sh | sh -s -- [参数]"
-        say '  常用：--admin-user 名称 --admin-password 密码 --domain 域名 --email 邮箱 --hy2-port 端口'
+        say '  不给账号密码时会交互询问；完全免交互用 -y';
+        say '  其它：--admin-user 名称 --admin-password 密码 --domain 域名 --email 邮箱 --hy2-port 端口'
       fi
       exit 0 ;;
     *) die "未知参数：$1（--help 看用法）" ;;
@@ -108,6 +113,88 @@ done
 
 [ "$CHECK_ONLY" = "1" ] || need_root
 
+# ---------------------------- 交互：管理员账号 ----------------------------
+# 即使脚本从管道（curl | sh）进来，也从 /dev/tty 读数，保证有终端就能输入
+TTY=/dev/tty
+
+have_tty() { [ -r "$TTY" ] && [ -w "$TTY" ]; }
+
+# ask_line 提示 默认值 -> 结果进 REPLY
+ask_line() {
+  printf '    %s' "$1" > "$TTY"
+  [ -n "${2:-}" ] && printf ' [%s]' "$2" > "$TTY"
+  printf ': ' > "$TTY"
+  REPLY=''
+  IFS= read -r REPLY < "$TTY" || REPLY=''
+  [ -z "$REPLY" ] && [ -n "${2:-}" ] && REPLY="$2"
+}
+
+# ask_secret 提示 -> 结果进 REPLY（关回显）
+ask_secret() {
+  printf '    %s: ' "$1" > "$TTY"
+  stty -echo < "$TTY" 2>/dev/null || true
+  REPLY=''
+  IFS= read -r REPLY < "$TTY" || REPLY=''
+  stty echo < "$TTY" 2>/dev/null || true
+  printf '\n' > "$TTY"
+}
+
+# 密码转 systemd 安全形式：双引号包裹、$ 写成 $$
+prepare_pass_unit() {
+  ADMIN_PASS_UNIT=''
+  [ -n "$ADMIN_PASS" ] || return 0
+  pu=$(printf '%s' "$ADMIN_PASS" | sed 's/\$/$$/g')
+  ADMIN_PASS_UNIT="\"$pu"\"
+}
+
+configure_admin() {
+  if [ -n "$ADMIN_PASS" ]; then
+    prepare_pass_unit
+    ok "管理员账号：$ADMIN_USER（密码来自参数）"
+    return 0
+  fi
+  if [ "$CHECK_ONLY" = "1" ]; then
+    info "将交互式询问管理员账号与密码（也可用 --admin-user/--admin-password 直接指定）"
+    return 0
+  fi
+  if [ "$ASSUME_YES" = "1" ] || ! have_tty; then
+    warn "非交互模式：管理员密码由面板随机生成，完成后会打印"
+    return 0
+  fi
+
+  step "设置管理员账号"
+  info "直接回车用默认值；密码输入时不显示"
+  n=0
+  while [ "$n" -lt 3 ]; do
+    n=$((n + 1))
+    ask_line "管理员用户名" "${ADMIN_USER:-admin}"
+    ADMIN_USER=${REPLY:-admin}
+    ask_secret "管理员密码（至少 8 位，留空则随机生成）"
+    p1=$REPLY
+    if [ -z "$p1" ]; then
+      info "密码留空 —— 由面板随机生成，完成后会打印"
+      return 0
+    fi
+    if [ ${#p1} -lt 8 ]; then
+      warn "密码至少 8 位，请重试"
+      continue
+    fi
+    if printf '%s' "$p1" | grep -q '["\]'; then
+      warn "密码不能含双引号或反斜杠（会破坏 systemd 参数），请重试"
+      continue
+    fi
+    ask_secret "再输入一次确认"
+    if [ "$p1" != "$REPLY" ]; then
+      warn "两次输入不一致，请重试"
+      continue
+    fi
+    ADMIN_PASS=$p1
+    prepare_pass_unit
+    ok "管理员账号：$ADMIN_USER（密码已设置）"
+    return 0
+  done
+  warn "连续 3 次未设置成功，改用面板随机密码"
+}
 # ---------------------------- 系统探测 ----------------------------
 OS_ID=""; OS_LIKE=""; PKG=""
 ARCH=""
@@ -413,7 +500,7 @@ UNIT
   fi
 
   ADMIN_FLAG=""
-  [ -n "$ADMIN_PASS" ] && ADMIN_FLAG=" -admin-password $ADMIN_PASS"
+  [ -n "$ADMIN_PASS" ] && ADMIN_FLAG=" -admin-password $ADMIN_PASS_UNIT"
   cat > "/etc/systemd/system/$UNIT_PANEL.service" <<UNIT
 [Unit]
 Description=HY2 Panel (Web management for the official Hysteria 2 server)
@@ -564,6 +651,7 @@ main() {
   say "  ─────────────────────────────────────────────────────"
   detect
   [ "$UNINSTALL" = "1" ] && { do_uninstall; exit 0; }
+  configure_admin
 
   install_base_deps
   install_openssl_if_possible
