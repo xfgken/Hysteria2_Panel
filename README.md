@@ -95,6 +95,54 @@ sh install.sh --uninstall --purge
 
 ---
 
+## 升级更新
+
+已经装了旧版的服务器，用 `upgrade.sh` 从 GitHub Release 重新拉取最新版并原地替换。
+**只换二进制和前端，`config/` 与 `data/` 绝不改动**；旧版自动备份，启动失败自动回滚。
+
+```bash
+# 一步升级到最新版（推荐）
+curl -fsSL https://raw.githubusercontent.com/xfgken/Hysteria2_Panel/main/upgrade.sh | sh
+```
+
+常用用法：
+
+```bash
+# 只看有没有新版，不改动系统
+curl -fsSL https://raw.githubusercontent.com/xfgken/Hysteria2_Panel/main/upgrade.sh | sh -s -- --check
+
+# 已经是最新，但仍强制重新拉取一遍
+curl -fsSL https://raw.githubusercontent.com/xfgken/Hysteria2_Panel/main/upgrade.sh | sh -s -- --force
+
+# 升级后有问题，一键回滚到上一版
+curl -fsSL https://raw.githubusercontent.com/xfgken/Hysteria2_Panel/main/upgrade.sh | sh -s -- --rollback
+
+# 离线升级：把二进制和前端包先传到服务器，再本地跑
+sh upgrade.sh --panel-bin ./hy2-panel-linux-amd64 --web-tar ./hy2-web.tar.gz
+```
+
+| 参数 | 说明 |
+|---|---|
+| `--check` | 只比对版本，不改动系统（会拉取小体积的前端包用于比对） |
+| `--force` | 忽略版本比对，强制重新拉取覆盖 |
+| `--rollback` | 回滚到上一次升级前的二进制与前端 |
+| `--panel-bin F` | 用本地二进制升级，不走网络 |
+| `--web-tar F` | 用本地前端包升级，不走网络 |
+| `--no-web` | 只升级面板二进制，不动前端 |
+| `--no-restart` | 只替换文件，不重启服务 |
+
+升级过程做了这些事：
+
+1. 从 `releases/latest` 按架构下载 `hy2-panel-linux-{amd64,arm64}` 与 `hy2-web.tar.gz`；
+2. 校验下到的是合法 ELF 可执行文件（大小 + 魔数），不是就报错退出；
+3. 比对前端资源名，与当前一致就提示「已经是最新版」并退出（不折腾服务）；
+4. 备份：二进制存为 `hy2-panel.prev`，前端存为 `backup/upgrade-<时间戳>.tgz`；
+5. 替换 `hy2-panel` 与 `web/dist`（同时更新 `templates/`）；
+6. 重启服务并做健康检查（连本机端口，最多等 10 秒）；
+7. 起不来 → 自动用备份回滚，并给出 `journalctl` 诊断命令。
+
+默认位置可用环境变量覆盖：`HY2_APP_DIR`（默认 `/opt/hy2-panel`）、`HY2_UNIT`（默认 `hy2-panel`）。
+
 ## 功能
 
 - **账号管理**：新增 / 修改 / 删除账号，名称前缀 `hysteria2-`，密码可随机生成
@@ -116,7 +164,7 @@ sh install.sh --uninstall --purge
 | 后端 | Go（标准库 `net/http`），SQLite（纯 Go 驱动，免 CGO），单二进制 |
 | 前端 | React + TypeScript + Vite，自建 MD3 风格组件，黑白双主题 |
 | 核心 | 官方 Hysteria 2（独立 systemd 单元，面板只管配置与上下线） |
-| 部署 | 一个 `install.sh` + 两个 systemd 单元 |
+| 部署 | `install.sh` 安装 + `upgrade.sh` 升级，两个 systemd 单元 |
 
 ## 目录结构
 
@@ -130,6 +178,7 @@ internal/sub/        订阅生成（Hysteria2 URI / Clash Meta）
 internal/firewall/   改端口时自动放行 ufw / firewalld / iptables / nftables
 web/                 前端源码（web/dist 为已构建产物）
 install.sh           一键安装脚本
+upgrade.sh           一键升级脚本（从 Release 拉取最新版，可回滚）
 deploy/              systemd / nginx 模板与示例配置
 ```
 
