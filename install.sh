@@ -438,6 +438,25 @@ write_config() {
     return 0
   fi
 
+  # 没域名：先生成自签证书（Hysteria 2 启动必需）
+  if [ -z "$DOMAIN" ]; then
+    if command -v openssl >/dev/null 2>&1; then
+      mkdir -p "$APP_DIR/acme"
+      cn="$(hostname 2>/dev/null || echo hy2-panel)"
+      if openssl req -x509 -nodes -newkey rsa:2048 -days 3650 \
+           -keyout "$APP_DIR/acme/self.key" -out "$APP_DIR/acme/self.crt" \
+           -subj "/CN=$cn" >/dev/null 2>&1; then
+        chmod 600 "$APP_DIR/acme/self.key"
+        ok "已生成自签证书（客户端需允许自签）"
+      else
+        warn "自签证书生成失败（Hysteria 2 需要 tls 或 acme，可能无法启动）"
+      fi
+    else
+      warn "未安装 openssl 且未指定 --domain：无法生成自签证书"
+      info "建议安装 openssl 后重跑，或用 --domain 域名 --email 邮箱 申请正式证书"
+    fi
+  fi
+
   OBFS_PASS="$(rand_hex 8)"
   STATS_SECRET="$(rand_hex 32)"
 
@@ -452,6 +471,11 @@ write_config() {
       echo "  type: http"
       echo "  http:"
       echo "    altPort: $ACME_ALT_PORT"
+    else
+      # Hysteria 2 必须有 tls 或 acme，没域名就用自签证书（客户端需允许自签）
+      echo "tls:"
+      echo "  cert: $APP_DIR/acme/self.crt"
+      echo "  key: $APP_DIR/acme/self.key"
     fi
     echo "obfs:"
     echo "  type: salamander"
@@ -540,6 +564,7 @@ ExecStart=$APP_DIR/hy2-panel \\
     -backup-dir $APP_DIR/backup \\
     -service-unit $UNIT_HY \\
     -web-dir $APP_DIR/web/dist \\
+    -admin-user $ADMIN_USER \
     -initial-user $INITIAL_USER$ADMIN_FLAG
 Restart=on-failure
 RestartSec=3
@@ -606,11 +631,29 @@ start_services() {
     systemctl enable --now "$UNIT_HY" >/dev/null 2>&1 || warn "$UNIT_HY 启动失败，看 journalctl -u $UNIT_HY"
   fi
   systemctl enable --now "$UNIT_PANEL" >/dev/null 2>&1 || warn "$UNIT_PANEL 启动失败，看 journalctl -u $UNIT_PANEL"
-  sleep 2
-  hy_state="$(systemctl is-active "$UNIT_HY" 2>/dev/null || true)"
-  panel_state="$(systemctl is-active "$UNIT_PANEL" 2>/dev/null || true)"
+
+  # 最多等 6 秒做健康检查（服务可能还在启动/重启）
+  i=0
+  hy_state=""
+  panel_state=""
+  while [ "$i" -lt 6 ]; do
+    sleep 1
+    i=$((i + 1))
+    hy_state="$(systemctl is-active "$UNIT_HY" 2>/dev/null || true)"
+    panel_state="$(systemctl is-active "$UNIT_PANEL" 2>/dev/null || true)"
+    [ "$WITH_HYSTERIA" != "1" ] && hy_state=active
+    if [ "$hy_state" = "active" ] && [ "$panel_state" = "active" ]; then break; fi
+  done
   [ "$WITH_HYSTERIA" = "1" ] && info "$UNIT_HY：$hy_state"
   info "$UNIT_PANEL：$panel_state"
+  if [ "$panel_state" != "active" ]; then
+    warn "$UNIT_PANEL 没起来，最近日志："
+    journalctl -u "$UNIT_PANEL" -n 6 --no-pager 2>/dev/null | sed "s/^/      /"
+  fi
+  if [ "$WITH_HYSTERIA" = "1" ] && [ "$hy_state" != "active" ]; then
+    warn "$UNIT_HY 没起来，最近日志："
+    journalctl -u "$UNIT_HY" -n 6 --no-pager 2>/dev/null | sed "s/^/      /"
+  fi
 }
 
 # ---------------------------- 收尾输出 ----------------------------
