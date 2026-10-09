@@ -4816,12 +4816,12 @@ html[data-theme='dark'] {
   /* 去掉圆角：光标贴左也不会被圆弧裁掉 */
   border-radius: 0;
 
-  /* 方形块光标（终端风）：块状比细竖线粗，一眼看得见 */
-  caret-shape: block;
+  /* 光标：保持系统默认的细竖线（不要块状），只给个高对比度颜色 */
+  caret-shape: auto;
   caret-color: var(--primary);
 }
 
-/* 不支持 caret-shape 的旧浏览器至少给个高对比度的竖线 */
+/* 旧浏览器：只靠颜色也能看清细光标 */
 @supports not (caret-shape: block) {
   .name-builder .input {
     caret-color: var(--text);
@@ -5219,4 +5219,537 @@ html[data-theme='dark'] .select-menu {
 
 .toast__close {
   margin-right: 0;
+}
+
+/* ==========================================================================
+   本轮：状态色（在线绿 / 离线红） + 登录页重构
+   ========================================================================== */
+
+/* ---- 状态色：只给“状态”文字用，不参与黑白主色调 ---- */
+html[data-theme='light'] {
+  --st-on: #0e7a45;
+  --st-on-bg: #d8f0e1;
+  --st-off: #c0392b;
+  --st-off-bg: #f7dedb;
+}
+
+html[data-theme='dark'] {
+  --st-on: #7ee0a6;
+  --st-on-bg: #17301f;
+  --st-off: #ff8d94;
+  --st-off-bg: #3a2020;
+}
+
+/* 账号行：在线 / 离线 */
+.uacc__state--on {
+  color: var(--st-on);
+}
+
+.uacc__state--off {
+  color: var(--st-off);
+}
+
+/* 服务徐标：运行中 = 绿 */
+.badge--ok {
+  color: var(--st-on);
+  background: var(--st-on-bg);
+}
+
+/* ==========================================================================
+   登录页重构：圆形徐标 + 胶囊输入框 + 整行主按钮
+   ========================================================================== */
+
+.login {
+  padding: 28px 20px;
+}
+
+.login__wrap {
+  width: 100%;
+  max-width: 356px;
+  display: flex;
+  flex-direction: column;
+  animation: loginIn 420ms var(--ease) both;
+}
+
+@keyframes loginIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.login__brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 26px;
+}
+
+.login__brand .login__mark {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: var(--btn-primary);
+  color: var(--btn-primary-ink);
+  margin-bottom: 16px;
+}
+
+.login__name {
+  margin: 0;
+  font-size: 25px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-align: center;
+}
+
+.login__sub {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  color: var(--text-faint);
+  text-align: center;
+}
+
+.login__form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 胶囊输入框：左侧图标 + 输入区 + （可选）右侧眼睛 */
+.lgf {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  height: 52px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  outline: 2px solid transparent;
+  outline-offset: 0;
+  transition: background 160ms var(--ease), outline-color 160ms var(--ease);
+}
+
+.lgf:focus-within {
+  background: var(--surface-3);
+  outline-color: var(--primary);
+}
+
+.lgf__icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  color: var(--text-faint);
+  transition: color 160ms var(--ease);
+}
+
+.lgf:focus-within .lgf__icon {
+  color: var(--primary);
+}
+
+.lgf__input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: none;
+  background: none;
+  outline: none;
+  color: var(--text);
+  font-size: 14.5px;
+  font-family: inherit;
+}
+
+.lgf__input::placeholder {
+  color: var(--text-faint);
+}
+
+.lgf__eye {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  transition: background 140ms var(--ease), color 140ms var(--ease);
+}
+
+.lgf__eye:hover {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+/* 错误提示：固定占位，出现时不会把按钮顶下去 */
+.login__err {
+  min-height: 20px;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--st-off);
+  text-align: center;
+}
+
+/* 主按钮：整行饱满 */
+.login__go {
+  width: 100%;
+  height: 52px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  border-radius: 999px;
+  background: var(--btn-primary);
+  color: var(--btn-primary-ink);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 140ms var(--ease), filter 160ms var(--ease);
+}
+
+.login__go:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.login__go:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
+.login__go:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* ==========================================================================
+   展开区：实时流量块（累计下载 / 上传）
+   ========================================================================== */
+
+.utraf {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.utraf__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--surface-2);
+  min-width: 0;
+}
+
+.utraf__icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  color: var(--text-dim);
+}
+
+.utraf__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.utraf__label {
+  font-size: 11.5px;
+  color: var(--text-faint);
+}
+
+.utraf__value {
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--mono);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ==========================================================================
+   展开区流量：一行纯文字（无卡片、无底色）
+   ========================================================================== */
+
+.utraf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 18px;
+  margin: 0 0 12px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+}
+
+.utraf__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 0;
+  background: none;
+  border-radius: 0;
+}
+
+.utraf__item svg {
+  flex: none;
+  color: var(--text-faint);
+}
+
+.utraf__label {
+  font-size: 12.5px;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.utraf__value {
+  font-size: 13.5px;
+  font-weight: 600;
+  font-family: var(--mono);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   连接日志：每条一个完整单元 + 极细分隔线（接入绿 / 断开红）
+   ========================================================================== */
+
+.ulog__list {
+  display: block;
+}
+
+.ulog__item {
+  display: grid;
+  grid-template-columns: max-content max-content 1fr;
+  column-gap: 12px;
+  align-items: center;
+  padding: 9px 2px;
+  white-space: nowrap;
+  border-radius: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+  background: none;
+}
+
+.ulog__item:last-child {
+  border-bottom: none;
+}
+
+.ulog__item:hover {
+  background: none;
+}
+
+.ulog__kind--on {
+  color: #7ee787;
+  background: none;
+}
+
+.ulog__kind--off {
+  color: #ff8b8b;
+  background: none;
+}
+
+.ulog__time {
+  color: #8b909a;
+}
+
+/* ==========================================================================
+   账号行：去掉序号圆圈、名字左移；流量小图标放到状态后面
+   ========================================================================== */
+
+.uacc__head {
+  padding: 11px 10px 11px 14px;
+}
+
+/* 行内流量：小图标 + 数值，跟状态同一行 */
+.uacc__meta .utraf {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px 12px;
+  margin: 0 0 0 8px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+}
+
+.uacc__meta .utraf__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  background: none;
+  border-radius: 0;
+}
+
+.uacc__meta .utraf__item svg {
+  flex: none;
+  color: var(--text-faint);
+}
+
+.uacc__meta .utraf__value {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   登录页：去掉头像徐标，控件收小一点
+   ========================================================================== */
+
+.login__brand {
+  margin-bottom: 20px;
+}
+
+.login__wrap {
+  max-width: 340px;
+}
+
+.login__form {
+  gap: 10px;
+}
+
+.lgf {
+  height: 46px;
+  padding: 0 16px;
+  gap: 10px;
+}
+
+.lgf__input {
+  font-size: 14px;
+}
+
+.lgf__eye {
+  width: 30px;
+  height: 30px;
+}
+
+.login__go {
+  height: 46px;
+  gap: 6px;
+  font-size: 14.5px;
+}
+
+/* ==========================================================================
+   账号行：状态与“小图标流量”按基线对齐（之前是各自垂直居中，看着不齐）
+   ========================================================================== */
+
+.uacc__meta {
+  display: flex;
+  align-items: baseline;
+  column-gap: 8px;
+}
+
+.uacc__state {
+  flex: none;
+  line-height: 1.35;
+}
+
+.uacc__meta .utraf {
+  flex: none;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px 12px;
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+}
+
+.uacc__meta .utraf__item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 0;
+  background: none;
+  border-radius: 0;
+}
+
+/* 图标自身居中于文字行，文字之间保持基线对齐 */
+.uacc__meta .utraf__item svg {
+  flex: none;
+  align-self: center;
+  color: var(--text-faint);
+}
+
+.uacc__meta .utraf__value {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   危险动作按钮（删除 / 清空日志 / 停止服务）：浅红底 + 红字
+   ========================================================================== */
+
+.btn--danger {
+  color: var(--st-off);
+  background: var(--st-off-bg);
+  border-color: transparent;
+}
+
+.btn--danger:hover:not(:disabled) {
+  color: var(--st-off);
+  background: color-mix(in srgb, var(--st-off) 16%, var(--st-off-bg));
+}
+
+.btn--danger:active:not(:disabled) {
+  background: color-mix(in srgb, var(--st-off) 24%, var(--st-off-bg));
+}
+
+/* ==========================================================================
+   徽标：运行中 = 绿；未运行 / 异常 = 红
+   ========================================================================== */
+
+.badge--ok {
+  color: var(--st-on);
+  background: var(--st-on-bg);
+  border-color: transparent;
+}
+
+.badge--warn,
+.badge--danger {
+  color: var(--st-off);
+  background: var(--st-off-bg);
+  border-color: transparent;
+}
+
+/* ==========================================================================
+   通知：右侧关闭按钮做得更明显（原来是 0.6 透明度、几乎看不见）
+   ========================================================================== */
+
+.toast__close {
+  width: 26px;
+  height: 26px;
+  opacity: 0.9;
+  background: rgba(127, 127, 127, 0.16);
+}
+
+.toast__close:hover {
+  opacity: 1;
+  background: rgba(127, 127, 127, 0.34);
 }

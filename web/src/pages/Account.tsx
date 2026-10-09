@@ -12,7 +12,17 @@ import {
   Field,
   Loading,
 } from '../components/ui'
-import { IconChevronDown, IconCopy, IconEdit, IconLogs, IconPlus, IconRefresh, IconTrash } from '../icons'
+import {
+  IconChevronDown,
+  IconCopy,
+  IconDownload,
+  IconEdit,
+  IconLogs,
+  IconPlus,
+  IconRefresh,
+  IconTrash,
+  IconUpload,
+} from '../icons'
 import { useToast } from '../toast'
 
 /**
@@ -75,10 +85,10 @@ export default function Account() {
     [toast],
   )
 
-  // 列表里已带在线数与累计流量，定时刷新即可（不必再单独拉详情）
+  // 列表里已带在线数与累计流量：每 2 秒刷新一次，做到实时
   useEffect(() => {
     void load()
-    const timer = window.setInterval(() => void load(true), 10000)
+    const timer = window.setInterval(() => void load(true), 2000)
     return () => window.clearInterval(timer)
   }, [load])
 
@@ -116,8 +126,6 @@ export default function Account() {
 
   /** 列表顺序与序号：按创建先后自上而下 1、2、3（新账号排在底部，序号更大）。 */
   const list = [...users].sort((a, b) => a.id - b.id)
-  const seqOf = new Map<number, number>()
-  list.forEach((x, i) => seqOf.set(x.id, i + 1))
   return (
     <Page title="账号与订阅" subtitle="服务器配置全局共用 · 每个账号独立订阅">
       <Card
@@ -159,14 +167,10 @@ export default function Account() {
           <ul className="ulist">
             {list.map((u) => {
               const open = u.id === openId
-              const seq = seqOf.get(u.id) ?? 0
               return (
                 <li key={u.id} className={open ? 'uacc uacc--open' : 'uacc'}>
                   {/* 行头：名称（点名称也能展开）+ 修改/删除 + 右侧下拉箭头 */}
                   <div className="uacc__head">
-                    <span className="uacc__index" title={`第 ${seq} 个账号`}>
-                      {seq}
-                    </span>
                     <button
                       type="button"
                       className="uacc__toggle"
@@ -182,8 +186,16 @@ export default function Account() {
                         >
                           {u.online > 0 ? `在线 · ${u.online} 个连接` : '离线'}
                         </span>
-                        {' · 累计 '}
-                        ↓ {formatBytes(u.historicalRx)} ↑ {formatBytes(u.historicalTx)}
+                        <span className="utraf">
+                          <span className="utraf__item">
+                            <IconUpload size={13} />
+                            <span className="utraf__value">{formatBytes(u.historicalTx)}</span>
+                          </span>
+                          <span className="utraf__item">
+                            <IconDownload size={13} />
+                            <span className="utraf__value">{formatBytes(u.historicalRx)}</span>
+                          </span>
+                        </span>
                       </span>
                     </button>
                     <button
@@ -207,6 +219,7 @@ export default function Account() {
                     {mountedIds.includes(u.id) && (
                       <div className="uacc__clip">
                         <div className="uacc__inner">
+
                           <SharePanel key={u.id} userId={u.id} reloadKey={subReload} />
                           {/* 账号操作放展开区最下方 */}
                           <div className="uacc__foot">

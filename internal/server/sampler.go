@@ -12,7 +12,7 @@ import (
 // 官方 Traffic Stats API 返回的是「自启动以来的累计值」，
 // Panel 周期性读取并与上次快照求差，得到增量后写入 SQLite，
 // 从而形成官方 Core 本身不提供的历史流量（开发文档 43 节）。
-const samplerInterval = 30 * time.Second
+const samplerInterval = 3 * time.Second
 
 // runSampler 后台周期性采集流量。
 func (s *Server) runSampler(ctx context.Context) {

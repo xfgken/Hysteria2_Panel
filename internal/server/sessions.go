@@ -15,7 +15,7 @@ import (
 )
 
 // sessionPollInterval 是接入 / 断开检测的轮询周期。
-const sessionPollInterval = 15 * time.Second
+const sessionPollInterval = 5 * time.Second
 
 // sessionSnapshot 是某一时刻所有用户的在线连接数（离线用户记 0）。
 type sessionSnapshot struct {
