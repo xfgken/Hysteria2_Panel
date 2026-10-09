@@ -1,0 +1,47 @@
+# HY2 Panel —— 官方 Hysteria 2 服务端配置示例
+#
+# 该文件由 Panel 生成与维护；此处仅为人工参考。
+# 字段含义以官方文档为准：https://v2.hysteria.network/docs/advanced/Full-Server-Config/
+#
+# 注意：Panel 需要 trafficStats 才能读取实时流量 / 在线 / 连接。
+
+listen: :443
+
+acme:
+  domains:
+    - your.domain.com
+  email: your@email.com
+  type: dns
+  dns:
+    name: cloudflare
+    config:
+      cloudflare_api_token: REPLACE_ME
+
+auth:
+  type: userpass
+  userpass:
+    # 由 Panel 用户管理自动同步
+    example: change_me
+
+# Panel 依赖：实时流量 / 在线用户 / 连接 / 踢下线
+trafficStats:
+  listen: 127.0.0.1:9999
+  secret: REPLACE_WITH_RANDOM_SECRET
+
+quic:
+  initStreamReceiveWindow: 8388608
+  maxStreamReceiveWindow: 8388608
+  initConnReceiveWindow: 20971520
+  maxConnReceiveWindow: 20971520
+  maxIdleTimeout: 30s
+  maxIncomingStreams: 1024
+
+congestion:
+  type: bbr
+  bbrProfile: standard
+
+masquerade:
+  type: proxy
+  proxy:
+    url: https://example.com
+    rewriteHost: true

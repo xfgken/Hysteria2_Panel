@@ -1,0 +1,32 @@
+[Unit]
+Description=HY2 Panel (Web management for the official Hysteria 2 server)
+After=network.target hysteria-server.service
+
+[Service]
+Type=simple
+# Panel 是「管理层」：需要通过 systemctl 启停官方服务，并在更新时替换官方二进制，
+# 因此以 root 运行（只放开这两件事所需的权限，其余加固项保留）。
+# 如需最小权限：可改用 polkit 规则授予 hy2-panel 管理 hysteria-server 的权限，
+# 并把官方二进制放到 /opt/hy2-panel/bin/ 下（位于 Panel 自己的可写目录内）。
+WorkingDirectory=/opt/hy2-panel
+ExecStart=/opt/hy2-panel/hy2-panel \
+    -listen :8080 \
+    -data-dir /opt/hy2-panel/data \
+    -hy2-config /opt/hy2-panel/config/hysteria.yaml \
+    -hy2-bin /usr/local/bin/hysteria \
+    -backup-dir /opt/hy2-panel/backup \
+    -service-unit hysteria-server \
+    -web-dir /opt/hy2-panel/web/dist
+Restart=on-failure
+RestartSec=3
+
+# 安全加固
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+# /usr/local/bin 用于替换官方 Core；/opt/hy2-panel 用于配置、数据与备份
+ReadWritePaths=/opt/hy2-panel /usr/local/bin
+
+[Install]
+WantedBy=multi-user.target

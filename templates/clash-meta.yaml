@@ -1,0 +1,54 @@
+{{/* HY2 Panel —— Clash Meta / mihomo 订阅模板（Go text/template 语法） */}}
+# HY2 Panel 订阅
+mixed-port: {{ .MixedPort }}
+allow-lan: {{ .AllowLAN }}
+mode: {{ .Mode }}
+log-level: {{ .LogLevel }}
+{{- if .ExternalController }}
+external-controller: {{ .ExternalController }}
+{{- end }}
+
+proxies:
+  - name: "{{ .ProxyName }}"
+    type: hysteria2
+    server: {{ .Server }}
+    port: {{ .Port }}
+    password: "{{ .Password }}"
+{{- if .SNI }}
+    sni: {{ .SNI }}
+{{- end }}
+    skip-cert-verify: true
+{{- if .ObfsType }}
+    obfs: {{ .ObfsType }}
+{{- if .ObfsPassword }}
+    obfs-password: "{{ .ObfsPassword }}"
+{{- end }}
+{{- end }}
+{{- if .Up }}
+    up: "{{ .Up }}"
+{{- end }}
+{{- if .Down }}
+    down: "{{ .Down }}"
+{{- end }}
+
+proxy-groups:
+  - name: "节点选择"
+    type: select
+    proxies:
+      - "{{ .ProxyName }}"
+
+rules:
+  # 本机 / 局域网直连
+  - DOMAIN,localhost,DIRECT
+  - DOMAIN-SUFFIX,local,DIRECT
+  - IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve
+  - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
+
+  # 中国大陆域名 / IP 直连
+  - GEOSITE,CN,DIRECT
+  - GEOIP,CN,DIRECT
+
+  # 其余全部走代理
+  - MATCH,节点选择

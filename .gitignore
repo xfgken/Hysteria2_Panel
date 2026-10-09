@@ -1,0 +1,29 @@
+# 构建产物（前端 dist 已提交，方便直接部署）
+/hy2-panel
+/dist/
+
+# 运行时数据（绝不入库）
+/data/
+/backup/
+/logs/
+/runtime/
+/subscriptions/
+config.yaml
+*.db
+*.db-wal
+*.db-shm
+
+# 密钥 / 证书
+*.pem
+*.key
+*.crt
+*.crt.key
+
+# 前端
+node_modules/
+
+# 编辑器
+.idea/
+.vscode/
+*.swp
+.DS_Store
