@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import { useEffect, useId, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Issue } from '../api'
@@ -305,7 +306,9 @@ export function Dialog({
   })
 
 
-  return (
+  // 用 Portal 挂到 body：弹窗不会被展开区的 overflow / 动画裁到
+  // （否则在某些浏览器里 fixed 会被限制在展开行内部）
+  return createPortal(
     <div
       className={closing ? 'overlay overlay--closing' : 'overlay'}
       onMouseDown={(e) => {
@@ -339,7 +342,8 @@ export function Dialog({
         <div className="dialog__body">{children}</div>
         {footer && <footer className="dialog__foot">{footer}</footer>}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
